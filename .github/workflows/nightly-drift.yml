@@ -1,0 +1,53 @@
+name: Nightly config drift check
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC every night
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: drift-check
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    # Routers on a private network? Use a self-hosted runner that can reach them:
+    # runs-on: [self-hosted, netops]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install drift-sentinel
+        run: pip install ".[ssh]"
+
+      - name: Compare running configs with approved baselines
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ROUTER_USERNAME: ${{ secrets.ROUTER_USERNAME }}
+          ROUTER_PASSWORD: ${{ secrets.ROUTER_PASSWORD }}
+          ROUTER_ENABLE: ${{ secrets.ROUTER_ENABLE }}
+          DRIFT_WEBHOOK_URL: ${{ secrets.DRIFT_WEBHOOK_URL }}
+          DRIFT_WEBHOOK_FORMAT: ${{ vars.DRIFT_WEBHOOK_FORMAT }}
+        run: >-
+          drift-sentinel check
+          --github-issues
+          --report drift-report.md
+          --json drift-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: drift-report.*
+          if-no-files-found: ignore
+          retention-days: 30

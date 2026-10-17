@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly router config drift check
+
+[Timer]
+OnCalendar=*-*-* 02:17:00
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

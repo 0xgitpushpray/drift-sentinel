@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drift-sentinel"
+dynamic = ["version"]
+description = "Nightly bot that flags routers whose running config drifted from the approved baseline."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "0xgitpushpray" }]
+keywords = ["network-automation", "config-drift", "netmiko", "cisco", "juniper", "arista"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+ssh = ["netmiko>=4.3"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+drift-sentinel = "drift_sentinel.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/0xgitpushpray/drift-sentinel"
+
+[tool.setuptools.dynamic]
+version = { attr = "drift_sentinel.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["drift_sentinel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

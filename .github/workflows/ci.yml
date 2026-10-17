@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install ".[dev]"
+      - run: pytest -q
+      - name: Demo run (expects edge-rtr-01 to drift)
+        run: |
+          set +e
+          drift-sentinel check --quiet --fail-on-drift
+          code=$?
+          set -e
+          test "$code" -eq 1

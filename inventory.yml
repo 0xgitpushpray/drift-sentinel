@@ -1,0 +1,56 @@
+# drift-sentinel inventory
+#
+# Out of the box this file points at the demo configs in examples/running/, so the
+# nightly workflow has something to check. Replace the devices below with your own
+# routers (see README "Point it at your network").
+
+settings:
+  approved_dir: approved      # baselines live in approved/<name>.cfg
+  secrets: compare            # "compare": a changed password counts as drift (always redacted in output)
+                              # "mask":    redact both sides first, for baselines stored without secrets
+  context_lines: 3
+  ignore:                     # regexes; matching lines are ignored on every device
+    - '^ntp clock-period'
+
+defaults:                     # applied to every device unless the device overrides it
+  platform: cisco_ios         # netmiko device_type: cisco_ios, cisco_xe, cisco_xr, cisco_nxos, arista_eos, juniper_junos, ...
+  collector: ssh              # ssh | file | command
+  username_env: ROUTER_USERNAME
+  password_env: ROUTER_PASSWORD
+
+devices:
+  # --- demo devices (file collector reads a saved config instead of logging in) ---
+  - name: core-rtr-01
+    collector: file
+    path: examples/running/core-rtr-01.cfg
+
+  - name: edge-rtr-01
+    collector: file
+    path: examples/running/edge-rtr-01.cfg
+
+  - name: branch-rtr-01
+    platform: juniper_junos
+    collector: file
+    path: examples/running/branch-rtr-01.cfg
+
+  # --- real devices look like this ---
+  # - name: dc1-core-01
+  #   host: 10.0.0.1
+  #
+  # - name: dc1-spine-01
+  #   host: 10.0.0.11
+  #   platform: arista_eos
+  #   ignore: ['^\s+description ']        # per-device ignore rules
+  #
+  # - name: br-04-srx
+  #   host: 10.40.0.1
+  #   platform: juniper_junos             # collected with "show configuration | display set"
+  #   key_file: ~/.ssh/netops_ed25519
+  #
+  # - name: dc1-edge-02
+  #   host: 10.0.0.2
+  #   enable_secret_env: ROUTER_ENABLE    # enter enable mode before collecting
+  #
+  # - name: from-oxidized
+  #   collector: command                  # anything that prints the config on stdout
+  #   command: cat /var/lib/oxidized/configs/{name}

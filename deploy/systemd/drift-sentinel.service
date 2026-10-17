@@ -1,0 +1,14 @@
+# Run drift-sentinel from a jump host instead of GitHub Actions.
+# Install: copy both units to /etc/systemd/system/, put credentials in
+# /etc/drift-sentinel.env (chmod 600), then: systemctl enable --now drift-sentinel.timer
+[Unit]
+Description=Router config drift check
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=netops
+WorkingDirectory=/opt/drift-sentinel
+EnvironmentFile=/etc/drift-sentinel.env
+ExecStart=/opt/drift-sentinel/.venv/bin/drift-sentinel check --quiet --report /var/log/drift-sentinel/latest.md

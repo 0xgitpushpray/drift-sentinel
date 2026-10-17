@@ -1,0 +1,75 @@
+name: Approve running config
+
+# Captures the current running config of one or more devices and opens a pull
+# request that updates their baselines in approved/. Merging the PR is the approval.
+
+on:
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: "Device name(s), space-separated, or 'all'"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  approve:
+    # Must be able to reach the routers, same as the nightly check.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install drift-sentinel
+        run: pip install ".[ssh]"
+
+      - name: Capture running config as new baseline
+        env:
+          DEVICES: ${{ inputs.devices }}
+          ROUTER_USERNAME: ${{ secrets.ROUTER_USERNAME }}
+          ROUTER_PASSWORD: ${{ secrets.ROUTER_PASSWORD }}
+          ROUTER_ENABLE: ${{ secrets.ROUTER_ENABLE }}
+        run: |
+          if [ "$DEVICES" = "all" ]; then
+            drift-sentinel approve --all
+          else
+            read -ra names <<< "$DEVICES"
+            drift-sentinel approve "${names[@]}"
+          fi
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEVICES: ${{ inputs.devices }}
+          ACTOR: ${{ github.actor }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -z "$(git status --porcelain -- approved/)" ]; then
+            echo "Baselines already match the running config; nothing to approve." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="approve/$(date -u +%Y%m%d-%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add approved/
+          git commit -m "Approve running config: $DEVICES"
+          git push origin "$branch"
+          {
+            echo "Requested by @$ACTOR via the *Approve running config* workflow."
+            echo
+            echo "Review the baseline changes below. Merging makes them the approved config;"
+            echo "the next nightly check will then close the matching drift issue(s)."
+            echo
+            echo '```'
+            git diff --stat HEAD~1 HEAD
+            echo '```'
+          } > pr-body.md
+          gh pr create --base "$BASE" --head "$branch" --title "Approve running config: $DEVICES" --body-file pr-body.md
